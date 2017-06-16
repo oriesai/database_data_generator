@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Database test data generator</title>
+    <style>
+        span {
+            cursor: pointer;
+        }
+
+        ul, li {
+            list-style: none;
+        }
+        input, select{
+            vertical-align: middle;
+        }
+
+    </style>
+    <script src="jquery-1.10.1.js"></script>
+</head>
+<body>
+<h1>Database test data generator</h1>
+<form method="post" action="dataentry.php">
+    <lable>database name:</lable>
+    <input type="text" class="dbname" name="dbname"><br>
+    <lable>table name:</lable>
+    <select class="table" name="table">
+        <option value="0">please select table</option>
+    </select><br>
+
+    <lable>number of digit needed:</lable>
+    <input type="text" name="number_digit" value="3"><br/>
+    <lable>number of alphabet needed:</lable>
+    <input type="text" name="string_digit" value="5"><br/>
+    <lable>date format:</lable>
+    <input type="text" name="date_format" value="Y-m-d"><br/>
+    <lable>records number:</lable>
+    <input type="text" name="record_count"> <br/>
+    <ul>
+        <li>
+            <span class="plus">[ + ]</span>
+            <lable>field:</lable>
+            <input type="text" class="fields" name="fields[]" >
+        </li>
+    </ul>
+    <input type="submit" value="submit">
+</form>
+</body>
+</html>
+<script>
+    var count = -1;
+    //add/remove options in  field  input when clicked-----------------------
+    $(document).on('click', '.plus', function (e) {
+        ++count;
+        var html3= '<input type="radio" class="radio" name="types['+count+']" value="string" > <lable>string</lable> <input type="radio" class="radio" name="types['+count+']" value="date"> <lable>datetime</lable> <input type="radio" class="radio" name="types['+count+']" value="number"> <lable>number</lable> <input type="radio" class="radio" name="types['+count+']" value="enum" > <lable>enum</lable>';
+
+
+        $(e.target).parent().clone().appendTo('ul').children('span').html('[ - ]').removeClass('plus').addClass('minus').parent().children().last().remove();
+        $('li').last().append(html3);
+    });
+    $(document).on('click', '.minus', function (e) {
+        $(this).parent().remove();
+    });
+    //add table selection list according to database by ajax--------------
+    $('.dbname').blur(function () {
+        var dbname = $(this).val();
+        if (dbname == '') {
+            count =-1;
+            $('.table').children('.choice').remove();
+            return false;
+        }
+        ;
+        $.get('dataentry.php', {'dbname': dbname}, function (data) {
+//            use foreach to traversate data, append option to select
+            var html = '';
+            $(data).each(function (key, value) {
+                html += '<option class="choice" value="' + value[0] + '">' + value[0] + '</option>';
+            });
+            $('.table').children('.choice').remove();
+            $('.table').append(html);
+        }, 'json');
+    });
+    // add field seelction list according to table by ajax--------------
+    $('select.table').change(function () {
+        //clear all field choices when table changes, reset counter
+        count = -1;
+        $('.fields').first().parent().siblings().remove();
+        var table = $(this).val();
+        var dbname = $('.dbname').val();
+        if (table == 0) {
+            $('.fields').children('.choice2').remove();
+            return false;
+        }
+        $.get('dataentry.php', {'table': table, 'dbname': dbname}, function (data) {
+            $('.fields').children('.choice2').remove();
+            var length = data.length;
+            //use foreach to traversate data, append option to select
+            $(data).each(function (key, value) {
+                ++count;
+                //add value to text ipput in each node
+                $('.fields').last().val(value[0]);
+//choose type to match field type and select the radio button-----------
+                //if value[1]==varchar/char/binary/varbinary/text/tinyblob/mediumblob/longblob-->string,int/tinyint/smallint/bigint/mediumint/float/decimal/timestamp-->number, datetime
+                var t = value[1];
+                var index = t.indexOf('(');
+                 var type ='';
+                 var realtype = '';
+                 //if there is no (), get t as type
+                if (index == -1){
+                   type = t;
+                }else{
+                    type = t.substr(0,index);
+                }
+
+                if (type == 'varchar' ||type == 'char' ||type == 'binary' ||type == 'varbinary' ||type == 'text' ||type == 'tinyblob' ||type == 'mediumblob' ||type == 'longblob'){
+                    realtype = 'string';
+                }else if (type == 'int'||type =='tinyint'||type =='smallint'||type =='bigint'||type =='mediumint'||type =='float'||type =='decimal'||type =='timestamp'){
+                    realtype = 'number';
+                }else if (type == 'enum'){
+                    realtype = 'enum';
+                }
+        var html2 ='<input type="hidden" class="radio" value="'+realtype+'" name="types['+count+']" >';
+
+//                 $('.fields').last().siblings('.radio').removeAttr('selected').parent().append()children('input[value='+realtype+']').attr('selected','selected');
+//                console.log(type);
+//                console.log(realtype);
+                //append next input node with sele
+                    $('.fields').last().siblings('input[type=hidden]').remove();
+                $('.fields').last().parent().append(html2);
+                if (length-1 != key) {
+                    $('.fields').last().parent().clone().appendTo('ul').children('span').html('[ - ]').removeClass('plus').addClass('minus');
+                }
+            });
+        }, 'json');
+    });
+</script>
